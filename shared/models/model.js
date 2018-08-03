@@ -25,14 +25,14 @@ var CORE_DATA_MODEL = /** @class */ (function () {
             status: 'Unconfirmed',
             createDateISOString: (new Date()).toISOString(),
             startDateISOString: (new Date()).toISOString(),
-            endDateISOString: (new Date('10-01-2018')).toISOString(),
+            endDateISOString: (new Date('11-01-2018')).toISOString(),
             lastClaimDateISOString: '',
             coveredCity: {
                 name: '',
                 latitude: 0.0,
                 longitude: 0.0
             },
-            ethereumAddress: '0x3A539F08E864C721383b78C7c61A728422c7cbb0',
+            ethereumAddress: '',
             claims: undefined
         };
     };
@@ -47,6 +47,12 @@ var CORE_DATA_MODEL = /** @class */ (function () {
                 id: '',
                 token: '',
                 name: ''
+            },
+            google: {
+                id: '',
+                token: '',
+                name: '',
+                email: ''
             }
         };
     };

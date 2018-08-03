@@ -11,6 +11,12 @@ export interface IPolicyHolder {
         token: string;
         name: string;
     };
+    google: {
+        id: string;
+        token: string;
+        name: string;
+        email: string;
+    };
 }
 export interface IPolicyHolderModel extends IPolicyHolder, Document {
 }
