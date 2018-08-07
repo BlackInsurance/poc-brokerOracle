@@ -42,6 +42,11 @@ exports.policyHolderSchema = new mongoose_1.Schema({
             type: String,
             required: false,
             default: ''
+        },
+        email: {
+            type: String,
+            required: false,
+            default: ''
         }
     },
     google: {

@@ -10,6 +10,7 @@ export interface IPolicyHolder {
         id: string;
         token: string;
         name: string;
+        email: string;
     };
     google: {
         id: string;

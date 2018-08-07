@@ -46,7 +46,8 @@ var CORE_DATA_MODEL = /** @class */ (function () {
             facebook: {
                 id: '',
                 token: '',
-                name: ''
+                name: '',
+                email: ''
             },
             google: {
                 id: '',
