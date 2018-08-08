@@ -6,6 +6,7 @@ import * as mongoose from 'mongoose';
 import * as querystring from 'querystring';
 import * as http from 'http';
 import * as fs from 'fs';
+import { google } from 'googleapis';
 
 import * as bodyParser from "body-parser";
 import * as cookieParser from "cookie-parser";
@@ -24,6 +25,8 @@ import { IClaim, IClaimModel, claimSchema } from './shared/models/claim';
 import { IPolicy, IPolicyModel, policySchema } from './shared/models/policy';
 import * as claimDataModel from './shared/models/claim';
 import * as policyDataModel from './shared/models/policy';
+import { OAuth2Client } from 'google-auth-library';
+import { IPolicyHolder } from './shared/models/policyHolder';
 
 
 
@@ -33,6 +36,7 @@ let BrokerOracleConfig = {
     CHAINCODE_NAMESPACE: 'insure.black.poc',
     JWT_AUTHORIZATION_SECRET: process.env.JWT_AUTHORIZATION_SECRET || 'secret',
     INSURANCE_PRODUCT_ID: 'RAINY_DAY_INSURANCE',
+    GOOGLE_SHEET_ID: '',
     POLICY_BATCH_SIZE: 1,
     PROCESS_LOOP_INTERVAL_MS: 5000
 };
@@ -62,6 +66,7 @@ export class BrokerOracle {
 
     public HALT_LISTENING: boolean = true;
     public HALT_PROCESSING: boolean = true;
+
 
 
     /**
@@ -321,6 +326,7 @@ export class BrokerOracle {
         let factory = this.networkDefinition.getFactory();
         let newPolicyHolders = new Array();
         let newPolicyTransactions = new Array();
+        let currentBatchOfConfirmedPolicies = this.currentConfirmedPolicies.slice();
             
 
 
@@ -403,6 +409,10 @@ export class BrokerOracle {
                     // Clear the polices that were in-process
                     this.policiesInProcess = new Array();
 
+                    // Add all the policies to Google Sheets
+                    return this.appendPoliciesToGoogleSheets(currentBatchOfConfirmedPolicies);
+                }).then( (result:any) => {
+                    // Do the next batch or exit
                     if ( this.currentConfirmedPolicies.length > 0 ){
                         return this.processNextBatchOfConfirmedPolicies();
                     } else {
@@ -481,6 +491,10 @@ export class BrokerOracle {
                         policy.lastClaimDateISOString = newClaim.claimDateISOString;
 
                         return policy.save();
+                    }).then( (result:any) => {
+                        return this.appendClaimToGoogleSheets(eventDetails);
+                    }).then( (result:any) => {
+                        return Promise.resolve(true);
                     }).catch( (dbLookupError: any) => {
                         console.log('ERROR: Failed to save a new Policy to the DB.  PolicyID : ' + submittedClaim_policyID);
                         return Promise.reject(dbLookupError);
@@ -530,8 +544,92 @@ export class BrokerOracle {
     }
 
 
+    private appendClaimToGoogleSheets(claimDetails: any){
+        let values = [
+            [
+                claimDetails.policyID,
+                (new Date()).toISOString(),
+                claimDetails.rainLast24Hours
+            ]
+        ];
+        let request = {
+            spreadsheetId: this.serviceConfig.GOOGLE_SHEET_ID,
+            range: 'Claims!A1:C1',
+            valueInputOption: 'RAW',
+            resource : { values }
+        };
 
+        this.updateGoogleSheets(request);        
+    }
 
+    private appendPoliciesToGoogleSheets(policiesArray: any){
+        return new Promise( (resolve, reject) => {          
+            if (policiesArray.length && policiesArray.length > 0){
+                for(let i = 0; i < policiesArray.length; i++){    
+                    
+                    let usedFacebook = (policiesArray[i].facebook.id != '');
+                    let usedGoogle = (policiesArray[i].google.id != '');
+                    let usedEmail = (policiesArray[i].email != '');
+                    let policyHolderName = (usedEmail) ? policiesArray[i].email : 
+                                            (usedFacebook) ? policiesArray[i].facebook.name : policiesArray[i].google.name;
+                    let policyHolderEmail = (usedEmail) ? policiesArray[i].email : 
+                                            (usedFacebook) ? policiesArray[i].facebook.email : policiesArray[i].google.email;
+
+                    let values = [
+                        [
+                            (new Date()).toISOString(),
+                            policiesArray[i].coveredCity.name,
+                            policyHolderName,
+                            usedFacebook,
+                            usedGoogle,
+                            usedEmail,
+                            policyHolderEmail,
+                            policiesArray[i].policyID
+                        ]
+                    ];
+                    let request = {
+                        spreadsheetId: this.serviceConfig.GOOGLE_SHEET_ID,
+                        range: 'PolicyHolders!A1:H1',
+                        valueInputOption: 'RAW',
+                        resource : { values }
+                    };
+
+                    this.updateGoogleSheets(request);
+                }
+            }    
+            resolve(true);        
+        });
+    }
+
+    private updateGoogleSheets(request: any){
+        // Load client secrets from a local file.
+        fs.readFile('credentials.json', 'utf8', (err, content) => {
+            if (err) return console.log('Error loading client secret file:', err);
+
+            // Authorize a client with credentials, then call the Google Sheets API.
+            const credentials = JSON.parse(content);
+            const {client_secret, client_id, redirect_uris} = credentials.installed;
+            const oAuth2Client = new google.auth.OAuth2(
+                client_id, client_secret, redirect_uris[0]);
+
+            // Load the access token
+            fs.readFile('token.json', 'utf8', (err, token) => {
+                if (err) return console.log('Google Sheets access token is missing');
+
+                oAuth2Client.setCredentials(JSON.parse(token));
+
+                const sheets = google.sheets({version: 'v4', oAuth2Client});
+                sheets.spreadsheets.values.append(request, (err:any, result:any) => {
+                    if (err) {
+                        // Handle error.
+                        console.log(err);
+                    } else {
+                        console.log(`${result.data.updates.updatedCells} cells appended.`);
+                    }
+                });
+            });
+        });
+    }
 
 
 }
