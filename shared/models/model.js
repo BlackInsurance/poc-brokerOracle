@@ -19,9 +19,7 @@ var CORE_DATA_MODEL = /** @class */ (function () {
                 email: 'poc@black.insure',
                 balanceBLCK: 0
             },
-            policyHolder: {
-                policyHolderID: ''
-            },
+            policyHolder: this.getDefaultPolicyHolder(),
             status: 'Unconfirmed',
             createDateISOString: (new Date()).toISOString(),
             startDateISOString: (new Date()).toISOString(),

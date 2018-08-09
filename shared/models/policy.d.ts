@@ -2,6 +2,7 @@
 import { Document, Schema } from 'mongoose';
 import * as mongoose from 'mongoose';
 import { IClaim } from './claim';
+import { IPolicyHolder } from './policyHolder';
 export interface IPolicy {
     policyID: string;
     product: {
@@ -17,9 +18,7 @@ export interface IPolicy {
         email: string;
         balanceBLCK: Number;
     };
-    policyHolder: {
-        policyHolderID: string;
-    };
+    policyHolder: IPolicyHolder;
     status: string;
     createDateISOString: string;
     startDateISOString: string;

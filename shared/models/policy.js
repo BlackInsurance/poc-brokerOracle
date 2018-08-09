@@ -55,10 +55,9 @@ exports.policySchema = new mongoose_1.Schema({
         }
     },
     policyHolder: {
-        policyHolderID: {
-            type: String,
-            required: true
-        }
+        type: mongoose_1.Schema.Types.ObjectId,
+        ref: 'PolicyHolder',
+        required: true
     },
     status: {
         type: String,
@@ -134,7 +133,7 @@ exports.getPolicyByConfirmationFromDB = function (db, confirmationID) {
         }
         var policyHolderID = policyHolder.policyHolderID;
         return PolicyModel.findOne({})
-            .where('policyHolder.policyHolderID').equals(policyHolderID)
+            .where('policyHolderID').equals(policyHolder._id)
             .exec(function (policyErr, policy) {
             if (!policy) {
                 return Promise.reject('Failed to find the requested Policy by Confirmation ID.');
@@ -169,8 +168,11 @@ exports.getPolicyByConfirmationFromDB = function (db, confirmationID) {
 exports.getConfirmedPolicies = function (db, batchSize) {
     var ClaimModel = db.model("Claim", claim_1.claimSchema);
     var PolicyModel = db.model("Policy", exports.policySchema);
+    var PolicyHolderModel = db.model("PolicyHolder", policyHolder_1.policyHolderSchema);
     // Get any 'Confirmed' policies from the DB
-    return PolicyModel.find({ 'status': 'Confirmed' }).limit(batchSize)
+    return PolicyModel.find({ 'status': 'Confirmed' })
+        .limit(batchSize)
+        .populate('policyHolder')
         .then(function (policies) {
         if (policies) {
             return Promise.resolve(policies);

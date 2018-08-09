@@ -27,6 +27,7 @@ import * as claimDataModel from './shared/models/claim';
 import * as policyDataModel from './shared/models/policy';
 import { OAuth2Client } from 'google-auth-library';
 import { IPolicyHolder } from './shared/models/policyHolder';
+import { Credentials } from 'google-auth-library/build/src/auth/credentials';
 
 
 
@@ -556,6 +557,7 @@ export class BrokerOracle {
             spreadsheetId: this.serviceConfig.GOOGLE_SHEET_ID,
             range: 'Claims!A1:C1',
             valueInputOption: 'RAW',
+            insertDataOption: 'INSERT_ROWS',
             resource : { values }
         };
 
@@ -567,13 +569,13 @@ export class BrokerOracle {
             if (policiesArray.length && policiesArray.length > 0){
                 for(let i = 0; i < policiesArray.length; i++){    
                     
-                    let usedFacebook = (policiesArray[i].facebook.id != '');
-                    let usedGoogle = (policiesArray[i].google.id != '');
-                    let usedEmail = (policiesArray[i].email != '');
-                    let policyHolderName = (usedEmail) ? policiesArray[i].email : 
-                                            (usedFacebook) ? policiesArray[i].facebook.name : policiesArray[i].google.name;
-                    let policyHolderEmail = (usedEmail) ? policiesArray[i].email : 
-                                            (usedFacebook) ? policiesArray[i].facebook.email : policiesArray[i].google.email;
+                    let usedFacebook = (policiesArray[i].policyHolder.facebook.id != '');
+                    let usedGoogle = (policiesArray[i].policyHolder.google.id != '');
+                    let usedEmail = (policiesArray[i].policyHolder.email != '');
+                    let policyHolderName = (usedEmail) ? policiesArray[i].policyHolder.email : 
+                                            (usedFacebook) ? policiesArray[i].policyHolder.facebook.name : policiesArray[i].policyHolder.google.name;
+                    let policyHolderEmail = (usedEmail) ? policiesArray[i].policyHolder.email : 
+                                            (usedFacebook) ? policiesArray[i].policyHolder.facebook.email : policiesArray[i].policyHolder.google.email;
 
                     let values = [
                         [
@@ -591,6 +593,7 @@ export class BrokerOracle {
                         spreadsheetId: this.serviceConfig.GOOGLE_SHEET_ID,
                         range: 'PolicyHolders!A1:H1',
                         valueInputOption: 'RAW',
+                        insertDataOption: 'INSERT_ROWS',
                         resource : { values }
                     };
 
@@ -616,15 +619,19 @@ export class BrokerOracle {
             fs.readFile('token.json', 'utf8', (err, token) => {
                 if (err) return console.log('Google Sheets access token is missing');
 
-                oAuth2Client.setCredentials(JSON.parse(token));
+                let creds : Credentials = JSON.parse(token);
+                oAuth2Client.setCredentials(creds);
+
+                // Extend the request with the OAuth2 client and an access token
+                request.auth = oAuth2Client;
+                request.access_token = creds.access_token;
 
                 const sheets = google.sheets({version: 'v4', oAuth2Client});
                 sheets.spreadsheets.values.append(request, (err:any, result:any) => {
                     if (err) {
-                        // Handle error.
                         console.log(err);
                     } else {
-                        console.log(`${result.data.updates.updatedCells} cells appended.`);
+                        console.log('Google Sheet record appended.');
                     }
                 });
             });
